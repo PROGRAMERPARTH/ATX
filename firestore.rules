@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidPrintJob(data) {
+      return data.userId is string &&
+             data.fileName is string && data.fileName.size() <= 255 &&
+             data.status in ['pending', 'paid', 'printed', 'expired'] &&
+             data.amount is number && data.amount >= 0 &&
+             data.token is string && data.token.size() <= 64;
+    }
+
+    match /printJobs/{jobId} {
+      allow get: if isSignedIn() && (isOwner(resource.data.userId) || request.auth.token.kiosk == true);
+      allow list: if isSignedIn() && isOwner(resource.data.userId);
+      
+      allow create: if isSignedIn() && 
+                    isOwner(request.resource.data.userId) &&
+                    isValidPrintJob(request.resource.data) &&
+                    request.resource.data.status == 'pending' &&
+                    request.resource.data.createdAt == request.time;
+
+      allow update: if isSignedIn() && (
+        // User can pay or cancel
+        (isOwner(resource.data.userId) && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paymentId']) &&
+         resource.data.status == 'pending') ||
+        
+        // Kiosk marks as printed
+        (request.auth.token.kiosk == true &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+         resource.data.status == 'paid' &&
+         request.resource.data.status == 'printed')
+      );
+    }
+  }
+}

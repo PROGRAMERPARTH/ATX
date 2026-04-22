@@ -1,0 +1,13 @@
+{
+  "name": "ATX - Any Time Xerox",
+  "description": "A 24/7 self-service printing kiosk network with cloud-based remote printing and digital payments.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "cloud_storage",
+    "realtime_sync",
+    "digital_payments"
+  ]
+}

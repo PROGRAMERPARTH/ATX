@@ -1,0 +1,34 @@
+{
+  "entities": {
+    "PrintJob": {
+      "title": "Print Job",
+      "description": "Represents a single print job request from a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner of the print job" },
+        "fileName": { "type": "string", "description": "Original file name" },
+        "fileUrl": { "type": "string", "description": "Secure storage URL" },
+        "status": { "type": "string", "enum": ["pending", "paid", "printed", "expired"] },
+        "amount": { "type": "number", "description": "Price in cents" },
+        "token": { "type": "string", "description": "Unique token for kiosk retrieval" },
+        "config": {
+          "type": "object",
+          "properties": {
+            "copies": { "type": "integer" },
+            "color": { "type": "boolean" },
+            "pageSize": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "fileName", "status", "amount", "token", "createdAt"]
+    }
+  },
+  "firestore": {
+    "printJobs/{jobId}": {
+      "schema": "PrintJob",
+      "description": "Collection of all print jobs."
+    }
+  }
+}

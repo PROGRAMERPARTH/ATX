@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-brand: #3B82F6;
+  --color-brand-dark: #2563EB;
+  --color-bg-deep: #0A0A0B;
+  --color-bg-card: #17171A;
+  --color-accent-green: #10B981;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-deep text-slate-200 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-[rgba(23,23,26,0.8)] border border-white/5 backdrop-blur-xl shadow-2xl;
+  }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full bg-accent-green shadow-[0_0_10px_#10B981];
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-br from-brand to-brand-dark transition-all duration-200 hover:shadow-lg hover:shadow-brand/20 active:scale-95;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border-l-2 border-transparent transition-all duration-200;
+  }
+
+  .sidebar-item.active {
+    @apply border-brand bg-brand/10 text-brand;
+  }
+
+  .sidebar-item:not(.active) {
+    @apply text-slate-500 hover:text-slate-300 hover:bg-white/5;
+  }
+}
+
