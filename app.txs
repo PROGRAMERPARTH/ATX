@@ -1,0 +1,732 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  FileUp, 
+  Printer, 
+  CreditCard, 
+  QrCode, 
+  CheckCircle2, 
+  ChevronRight, 
+  Package, 
+  Settings2,
+  Clock,
+  ShieldCheck,
+  MapPin,
+  Smartphone,
+  Trash2,
+  HelpCircle,
+  Mail,
+  Search,
+  ExternalLink
+} from 'lucide-react';
+import { useDropzone } from 'react-dropzone';
+import { QRCodeSVG } from 'qrcode.react';
+import { cn } from './lib/utils';
+
+// Types
+type ViewType = 'dashboard' | 'history' | 'kiosks' | 'support';
+
+interface PrintConfig {
+  copies: number;
+  color: boolean;
+  pageSize: 'A4' | 'A3' | 'Letter';
+  duplex: boolean;
+}
+
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  url: string;
+}
+
+interface PrintJob {
+  id: string;
+  token: string;
+  fileName?: string;
+  amount: number;
+  status: 'pending' | 'paid' | 'printed' | 'expired';
+  createdAt: string;
+  config: PrintConfig;
+}
+
+// Sub-components
+const HistorySection = () => {
+  const [history, setHistory] = useState<PrintJob[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/jobs')
+      .then(res => res.json())
+      .then(data => {
+        setHistory(data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="h-full flex items-center justify-center font-bold text-slate-500 uppercase tracking-widest text-xs">Loading sync history...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-3xl font-black tracking-tight">Print History</h2>
+        <button className="text-xs font-bold bg-white/5 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors uppercase tracking-widest">Refresh Logs</button>
+      </div>
+
+      {history.length === 0 ? (
+        <div className="glass-panel rounded-[40px] p-20 flex flex-col items-center text-center">
+          <Clock size={48} className="text-slate-800 mb-6" />
+          <p className="text-slate-400 font-medium">No previous jobs found on this account.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {history.map(job => (
+            <div key={job.id} className="glass-panel p-6 rounded-3xl flex items-center justify-between group hover:border-brand/30 transition-all">
+              <div className="flex items-center gap-6">
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center",
+                  job.status === 'paid' ? "bg-accent-green/10 text-accent-green" : "bg-slate-800 text-slate-500"
+                )}>
+                  <Printer size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-sm">{job.token}</h4>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                    {new Date(job.createdAt).toLocaleDateString()} • ₹{job.amount}.00 • {job.config.color ? 'Color' : 'B&W'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className={cn(
+                  "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
+                  job.status === 'paid' ? "bg-accent-green/10 text-accent-green" : "bg-slate-800 text-slate-400"
+                )}>
+                  {job.status}
+                </div>
+                <button className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-500 hover:bg-white/10 hover:text-white transition-all opacity-0 group-hover:opacity-100">
+                  <ExternalLink size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const KioskSection = () => {
+  const [routingTo, setRoutingTo] = useState<any>(null);
+  
+  const kiosks = [
+    { name: "ATX Hub - Terminal 2", status: "Online", distance: "0.4km", load: "Low", lat: 18.5204, lng: 73.8567 },
+    { name: "City Center Galleria", status: "Online", distance: "1.2km", load: "Medium", lat: 18.5304, lng: 73.8667 },
+    { name: "Tech Park Block C", status: "Maintenance", distance: "2.5km", load: "N/A", lat: 18.5404, lng: 73.8767 },
+    { name: "Metro Station North", status: "Online", distance: "3.1km", load: "High", lat: 18.5504, lng: 73.8867 }
+  ];
+
+  if (routingTo) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="space-y-6 h-full flex flex-col"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <button 
+              onClick={() => setRoutingTo(null)}
+              className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2 hover:text-white transition-colors"
+            >
+              <ChevronRight size={14} className="rotate-180" /> Back to Kiosks
+            </button>
+            <h2 className="text-3xl font-black tracking-tight flex items-center gap-4">
+              Routing to Terminal
+              <span className="text-xs bg-brand/10 text-brand px-3 py-1 rounded-lg border border-brand/20 italic font-medium">{routingTo.name}</span>
+            </h2>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-white">4 min</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Estimated Arrival</p>
+          </div>
+        </div>
+
+        <div className="flex-1 glass-panel rounded-[40px] relative overflow-hidden bg-slate-900 border-2 border-white/5">
+          {/* Animated Map Simulation */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+             <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #3B82F6 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+          </div>
+          
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* Pulsing Path */}
+            <svg className="w-full h-full max-w-2xl max-h-96 opacity-40" viewBox="0 0 400 200">
+              <motion.path
+                d="M 50 150 Q 150 50 250 150 T 350 50"
+                fill="none"
+                stroke="#3B82F6"
+                strokeWidth="4"
+                strokeDasharray="10 5"
+                initial={{ strokeDashoffset: 100 }}
+                animate={{ strokeDashoffset: 0 }}
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              />
+              <circle cx="50" cy="150" r="6" fill="#3B82F6" />
+              <motion.circle 
+                cx="350" cy="50" r="8" fill="#10B981"
+                animate={{ r: [8, 12, 8] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            </svg>
+          </div>
+
+          <div className="absolute bottom-8 left-8 right-8 flex gap-4">
+            <div className="flex-1 glass-panel p-6 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10">
+              <div className="flex items-center gap-4 mb-2">
+                <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white">
+                  <Smartphone size={16} />
+                </div>
+                <p className="text-sm font-bold text-white uppercase tracking-tight">Turn Right on Gateway Ave</p>
+              </div>
+              <p className="text-[10px] font-medium text-slate-400 pl-12">Continue for 150m towards the ATX Kiosk entrance.</p>
+            </div>
+            <button className="bg-brand hover:bg-brand-dark text-white font-black text-[10px] uppercase tracking-widest px-8 rounded-2xl transition-all shadow-xl shadow-brand/20">
+              Send to Phone
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+       <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-4">
+        <div>
+          <h2 className="text-3xl font-black tracking-tight mb-2">Nearest Kiosks</h2>
+          <p className="text-slate-500 font-medium text-sm">Real-time status of the ATX hardware network.</p>
+        </div>
+        <div className="flex gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input className="w-full bg-slate-900 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-xs font-bold focus:outline-none focus:border-brand/40" placeholder="Search city..." />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {kiosks.map(kiosk => (
+          <div key={kiosk.name} className="glass-panel p-8 rounded-3xl group hover:border-brand/30 transition-all">
+            <div className="flex justify-between items-start mb-6">
+              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-brand mb-4">
+                <MapPin size={24} />
+              </div>
+              <div className={cn(
+                "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
+                kiosk.status === 'Online' ? "bg-accent-green/10 text-accent-green" : "bg-red-500/10 text-red-400"
+              )}>
+                {kiosk.status}
+              </div>
+            </div>
+            <h4 className="font-bold text-white text-lg mb-1">{kiosk.name}</h4>
+            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+               <span>{kiosk.distance} away</span>
+               <span className="w-1 h-1 bg-slate-800 rounded-full" />
+               <span>Load: {kiosk.load}</span>
+            </div>
+            <button 
+              onClick={() => setRoutingTo(kiosk)}
+              className="w-full mt-8 py-3 rounded-xl bg-white/5 border border-white/5 text-xs font-bold uppercase tracking-widest hover:bg-brand hover:border-brand hover:text-white transition-all shadow-lg active:scale-95"
+            >
+              Route to Kiosk
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const SupportSection = () => {
+  return (
+    <div className="max-w-3xl mx-auto space-y-12">
+      <div className="text-center">
+        <h2 className="text-4xl font-black tracking-tight mb-4">How can we help?</h2>
+        <p className="text-slate-500 font-medium tracking-tight">Our mission control team is available 24/7 for technical assistance.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="glass-panel p-8 rounded-3xl space-y-4">
+          <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400">
+            <HelpCircle size={24} />
+          </div>
+          <h4 className="font-bold text-white">Documentation</h4>
+          <p className="text-xs font-medium text-slate-500 leading-relaxed italic">Learn how to configure advanced print settings and bulk institution printing.</p>
+          <a href="#" className="text-brand text-xs font-bold uppercase tracking-widest flex items-center gap-2">View Docs <ChevronRight size={14} /></a>
+        </div>
+        <div className="glass-panel p-8 rounded-3xl space-y-4">
+          <div className="w-12 h-12 bg-accent-green/10 rounded-2xl flex items-center justify-center text-accent-green">
+            <Mail size={24} />
+          </div>
+          <h4 className="font-bold text-white">Technical Support</h4>
+          <p className="text-xs font-medium text-slate-500 leading-relaxed italic">Encountered an error at a kiosk? Open a ticket for instant hardware diagnostics.</p>
+          <a href="#" className="text-brand text-xs font-bold uppercase tracking-widest flex items-center gap-2">Open Ticket <ChevronRight size={14} /></a>
+        </div>
+      </div>
+
+      <div className="glass-panel p-10 rounded-[40px] border-dashed border-2 border-white/5">
+        <h4 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-8 text-center italic">Frequent Resolutions</h4>
+        <div className="space-y-6">
+          <details className="group border-b border-white/5 pb-6">
+            <summary className="list-none flex items-center justify-between cursor-pointer font-bold text-white group-open:text-brand transition-colors text-sm">
+              My token expired before I reached the kiosk
+              <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
+            </summary>
+            <p className="mt-4 text-xs font-medium text-slate-500 leading-relaxed">Tokens are valid for 24 hours. If it expires, you can re-activate the job from history within 48 hours without paying again.</p>
+          </details>
+          <details className="group border-b border-white/5 pb-6">
+            <summary className="list-none flex items-center justify-between cursor-pointer font-bold text-white group-open:text-brand transition-colors text-sm">
+              The kiosk is offline but my job is paid
+              <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
+            </summary>
+            <p className="mt-4 text-xs font-medium text-slate-500 leading-relaxed">Jobs are synced globally. Simply find the next nearest kiosk on the locator map; your token will work instantly at any machine.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [view, setView] = useState<ViewType>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [step, setStep] = useState(0);
+  const [file, setFile] = useState<UploadedFile | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [config, setConfig] = useState<PrintConfig>({
+    copies: 1,
+    color: false,
+    pageSize: 'A4',
+    duplex: false
+  });
+  const [paymentToken, setPaymentToken] = useState<string | null>(null);
+
+  // Price Calculation
+  const pricePerPage = config.color ? 5 : 1;
+  const totalPrice = (file ? 10 : 0) * config.copies * pricePerPage; // Simulating 10 pages
+
+  const onDrop = async (acceptedFiles: File[]) => {
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', acceptedFiles[0]);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      setFile({
+        id: data.fileId,
+        name: data.fileName,
+        size: data.size,
+        url: data.url
+      });
+      setStep(1);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    onDrop,
+    accept: { 'application/pdf': ['.pdf'], 'image/*': ['.png', '.jpg', '.jpeg'] },
+    maxFiles: 1,
+    multiple: false
+  } as any);
+
+  const handlePay = async () => {
+    setStep(2);
+    try {
+      // 1. Create the job record
+      const jobRes = await fetch('/api/create-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId: file?.id, config, amount: totalPrice })
+      });
+      const jobData = await jobRes.json();
+      
+      // 2. Simulate payment verification
+      const verifyRes = await fetch('/api/payment-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: jobData.token })
+      });
+      const verifyData = await verifyRes.json();
+
+      if (verifyData.success) {
+        setPaymentToken(jobData.token);
+        setStep(3);
+      }
+    } catch (err) {
+      console.error("Payment flow failed", err);
+      setStep(1); // Rollback to config on error
+    }
+  };
+
+  return (
+    <div className="flex h-screen w-full bg-bg-deep overflow-hidden relative">
+      {/* Sidebar - Responsive handling */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 border-r border-white/5 flex flex-col bg-[#0F0F12] transition-transform duration-300 transform lg:relative lg:translate-x-0 shrink-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-brand rounded flex items-center justify-center font-bold text-white">A</div>
+            <span className="text-xl font-bold tracking-tight text-white uppercase">ATX <span className="text-brand underline underline-offset-4 decoration-2">System</span></span>
+          </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-500">
+            <ChevronRight size={20} className="rotate-180" />
+          </button>
+        </div>
+        <nav className="flex-1 px-4 space-y-2 mt-4">
+          <button 
+            onClick={() => { setView('dashboard'); setIsSidebarOpen(false); }}
+            className={cn("sidebar-item w-full text-left", view === 'dashboard' && "active")}
+          >
+            <span>Dashboard</span>
+          </button>
+          <button 
+            onClick={() => { setView('history'); setIsSidebarOpen(false); }}
+            className={cn("sidebar-item w-full text-left", view === 'history' && "active")}
+          >
+            <span>My Print History</span>
+          </button>
+          <button 
+            onClick={() => { setView('kiosks'); setIsSidebarOpen(false); }}
+            className={cn("sidebar-item w-full text-left", view === 'kiosks' && "active")}
+          >
+            <span>Nearest Kiosks</span>
+          </button>
+          <button 
+            onClick={() => { setView('support'); setIsSidebarOpen(false); }}
+            className={cn("sidebar-item w-full text-left", view === 'support' && "active")}
+          >
+            <span>Support & Help</span>
+          </button>
+        </nav>
+        <div className="p-6 border-t border-white/5">
+          <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">AR</div>
+            <div>
+              <p className="text-xs font-semibold text-white">Alex Rivera</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pro Account</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Main Support Area */}
+      <main className="flex-1 flex flex-col overflow-hidden w-full">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 bg-bg-deep/80 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white"
+            >
+              <Settings2 size={20} />
+            </button>
+            <h1 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Command Center</h1>
+          </div>
+          <div className="flex items-center gap-2 lg:gap-6">
+            <div className="hidden sm:flex items-center gap-2 text-xs">
+              <span className="status-dot"></span>
+              <span className="text-slate-400 font-medium">Network Online</span>
+            </div>
+            <div className="px-3 py-1 rounded bg-brand/10 text-brand text-[10px] font-black uppercase tracking-wider border border-brand/20">
+              CREDITS: $42.50
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+          <div className="max-w-6xl mx-auto">
+            <AnimatePresence mode="wait">
+              {view === 'dashboard' && (
+                <motion.div
+                  key="view-dashboard"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  {/* Step Progress */}
+                  <div className="flex items-center gap-2 sm:gap-6 lg:gap-12 mb-10 overflow-x-auto pb-2 scrollbar-none">
+                    <div className={cn("flex flex-shrink-0 items-center gap-3", step < 0 && "opacity-40")}>
+                      <div className={cn("w-6 h-6 rounded-full text-[10px] flex items-center justify-center font-bold", step >= 0 ? "bg-brand text-white" : "bg-slate-800")}>01</div>
+                      <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap", step >= 0 ? "text-white" : "text-slate-600")}>Upload</span>
+                    </div>
+                    <div className={cn("w-8 h-px bg-white/5 flex-shrink-0")} />
+                    <div className={cn("flex flex-shrink-0 items-center gap-3", step < 1 && "opacity-40")}>
+                      <div className={cn("w-6 h-6 rounded-full text-[10px] flex items-center justify-center font-bold", step >= 1 ? "bg-brand text-white" : "bg-slate-800")}>02</div>
+                      <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap", step >= 1 ? "text-white" : "text-slate-600")}>Configure</span>
+                    </div>
+                    <div className={cn("w-8 h-px bg-white/5 flex-shrink-0")} />
+                    <div className={cn("flex flex-shrink-0 items-center gap-3", step < 2 && "opacity-40")}>
+                      <div className={cn("w-6 h-6 rounded-full text-[10px] flex items-center justify-center font-bold", step >= 2 ? "bg-brand text-white" : "bg-slate-800")}>03</div>
+                      <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap", step >= 2 ? "text-white" : "text-slate-600")}>Payment</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-8">
+                    {/* Left Column: Action Area */}
+                    <div className="col-span-12 lg:col-span-8 flex flex-col gap-8 min-h-[500px]">
+                      <AnimatePresence mode="wait">
+                        {step === 0 && (
+                          <motion.div
+                            key="step-upload"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="flex-1 flex"
+                          >
+                            <div 
+                              {...getRootProps()} 
+                              className={cn(
+                                "flex-1 glass-panel rounded-[40px] border-2 border-dashed flex flex-col items-center justify-center text-center p-12 transition-all duration-300 group cursor-pointer",
+                                isDragActive ? "border-brand bg-brand/5" : "border-white/10 hover:border-brand/30"
+                              )}
+                            >
+                              <input {...getInputProps()} />
+                              <div className="w-20 h-20 bg-brand/10 rounded-full flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+                                <FileUp size={32} className="text-brand" />
+                              </div>
+                              {isUploading ? (
+                                <div className="flex flex-col items-center gap-4">
+                                  <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                                  <p className="font-bold text-white uppercase tracking-widest text-xs animate-pulse">Uploading...</p>
+                                </div>
+                              ) : (
+                                <>
+                                  <h2 className="text-3xl font-bold mb-3 tracking-tight">Ready to Print?</h2>
+                                  <p className="text-slate-400 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
+                                    Drag and drop your documents here or browse files. Supports PDF, DOCX, and high-res imagery.
+                                  </p>
+                                  <button className="btn-primary px-10 py-4 rounded-full font-bold shadow-xl shadow-brand/20">Browse Files</button>
+                                </>
+                              )}
+                              <div className="mt-12 flex gap-8 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-brand" /> Encrypted</span>
+                                <span className="flex items-center gap-2"><Clock size={14} className="text-brand" /> 24h Expiry</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {step === 1 && file && (
+                          <motion.div
+                            key="step-preview"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="flex-1 glass-panel rounded-[40px] p-12 flex flex-col items-center justify-center relative overflow-hidden"
+                          >
+                            <div className="absolute top-8 left-8 flex items-center gap-4">
+                              <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+                                <FileUp size={20} className="text-slate-400" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-white">{file.name}</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{(file.size / 1024 / 1024).toFixed(2)} MB • PDF Document</p>
+                              </div>
+                            </div>
+                            <div className="w-full max-w-sm aspect-[3/4] bg-bg-deep rounded-2xl border border-white/5 flex flex-col items-center justify-center p-12 text-center">
+                              <Package size={64} className="text-slate-800 mb-6" />
+                              <p className="text-xs font-bold text-slate-600 uppercase tracking-widest leading-loose">
+                                Secure Cloud Viewer <br />
+                                Ready for Production
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {(step === 2 || step === 3) && (
+                          <motion.div
+                            key="step-status"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex-1 glass-panel rounded-[40px] p-12 flex flex-col items-center justify-center text-center"
+                          >
+                            <div className={cn(
+                              "w-24 h-24 rounded-full flex items-center justify-center mb-10 transition-all duration-500",
+                              step === 2 ? "bg-brand/10" : "bg-accent-green/10 shadow-[0_0_40px_rgba(16,185,129,0.2)]"
+                            )}>
+                              {step === 2 ? (
+                                <CreditCard size={40} className="text-brand animate-pulse" />
+                              ) : (
+                                <CheckCircle2 size={40} className="text-accent-green" />
+                              )}
+                            </div>
+                            <h2 className="text-3xl font-bold mb-4 tracking-tight">
+                              {step === 2 ? "Authorizing Payment" : "Verification Successful"}
+                            </h2>
+                            <p className="text-slate-400 font-medium max-w-md mx-auto leading-relaxed">
+                              {step === 2 
+                                ? "We're validating your transaction with the bank. Please keep this window active."
+                                : "Your job has been cached at the edge. You can now use the token at any ATX Kiosk to fulfill your print request."}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Right Column: Sidebar Panels */}
+                    <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+                      {/* Print Settings Panel */}
+                      <div className="glass-panel rounded-3xl p-8">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-8">System Configuration</h3>
+                        <div className="space-y-8">
+                          <div className="space-y-4">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Color Mode</label>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => setConfig(prev => ({ ...prev, color: false }))}
+                                className={cn(
+                                  "flex-1 py-3 rounded-xl border text-xs font-bold transition-all",
+                                  !config.color ? "bg-brand/10 border-brand/50 text-brand" : "bg-slate-800/50 border-white/5 text-slate-500 hover:border-white/10"
+                                )}
+                              >B&W</button>
+                              <button 
+                                 onClick={() => setConfig(prev => ({ ...prev, color: true }))}
+                                 className={cn(
+                                   "flex-1 py-3 rounded-xl border text-xs font-bold transition-all",
+                                   config.color ? "bg-brand/10 border-brand/50 text-brand" : "bg-slate-800/50 border-white/5 text-slate-500 hover:border-white/10"
+                                 )}
+                              >Full Color</button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Copies</label>
+                              <input 
+                                type="number" 
+                                value={config.copies}
+                                onChange={(e) => setConfig(prev => ({ ...prev, copies: parseInt(e.target.value) || 1 }))}
+                                className="w-full bg-slate-800/50 border border-white/5 rounded-xl py-3 px-4 text-white text-sm font-bold focus:outline-none focus:border-brand/40"
+                              />
+                            </div>
+                            <div className="space-y-4">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Size</label>
+                              <select className="w-full bg-slate-800/50 border border-white/5 rounded-xl py-3 px-4 text-white text-xs font-bold focus:outline-none focus:border-brand/40 appearance-none">
+                                <option>A4 Std</option>
+                                <option>Letter</option>
+                                <option>Legal</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-10 pt-8 border-t border-white/5 space-y-4">
+                          <div className="flex justify-between items-center text-xs font-bold">
+                            <span className="text-slate-500 uppercase tracking-wider">Net Rate</span>
+                            <span className="text-white">₹{pricePerPage}.00</span>
+                          </div>
+                          <div className="flex justify-between items-end">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest pb-1">Grand Total</span>
+                            <span className="text-4xl font-black text-brand tracking-tighter">₹{totalPrice}</span>
+                          </div>
+                          {step === 1 && (
+                            <button 
+                              onClick={handlePay}
+                              className="w-full btn-primary py-5 rounded-2xl font-black text-xs uppercase tracking-widest text-white mt-4 flex items-center justify-center gap-2"
+                            >
+                              Authorize & Pay <ChevronRight size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Active Token Panel */}
+                      <div className="glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center flex-1 min-h-[300px]">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-6">Active Token</h3>
+                        
+                        {paymentToken ? (
+                          <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="flex flex-col items-center"
+                          >
+                            <div className="bg-white p-3 rounded-2xl mb-6 shadow-2xl shadow-brand/10">
+                              <QRCodeSVG value={paymentToken} size={150} level="H" />
+                            </div>
+                            <p className="text-[10px] font-black font-mono text-slate-500 uppercase tracking-[0.3em] mb-2">{paymentToken}</p>
+                            <p className="text-xs text-brand font-bold uppercase tracking-wider">Scan at Kiosk to start</p>
+                          </motion.div>
+                        ) : (
+                          <div className="flex flex-col items-center opacity-20">
+                            <div className="w-40 h-40 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/5">
+                              <QrCode size={64} className="text-slate-500" />
+                            </div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Waiting for payment</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {view === 'history' && (
+                <motion.div
+                  key="view-history"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <HistorySection />
+                </motion.div>
+              )}
+
+              {view === 'kiosks' && (
+                <motion.div
+                  key="view-kiosks"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <KioskSection />
+                </motion.div>
+              )}
+
+              {view === 'support' && (
+                <motion.div
+                  key="view-support"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <SupportSection />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
